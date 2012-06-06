@@ -431,13 +431,6 @@
 		    tdWidths.push($(this).width());
 		});
 
-		firstTdChildrenSelector = 'tbody tr > *:not(:nth-child(n+' + (settings.fixedColumns + 1) + '))';
-		$firstTdChildren = $fixedBody.find(firstTdChildrenSelector)
-		    .each(function(index) {
-			helpers._fixHeightWithCss($(this), tableProps);
-			helpers._fixWidthWithCss($(this), tableProps, tdWidths[index % settings.fixedColumns] );
-		    });
-
 		// clone header
 		$thead.appendTo($fixedColumn)
 		    .find('tr')
@@ -449,19 +442,8 @@
 			'height': fixedBodyHeight + tableProps.border
 		    });
 
-		var $newRow;
-		$firstTdChildren.each(function(index) {
-		    if (index % settings.fixedColumns == 0) {
-			$newRow = $('<tr></tr>').appendTo($tbody.find('tbody'));
-			
-			if (settings.altClass && $(this).parent().hasClass(settings.altClass)) {
-			    $newRow.addClass(settings.altClass);
-			} 
-		    }
-		    
-		    $(this).clone()
-			.appendTo($newRow);
-		});
+        helpers._getFrozenColumns($self, tableProps, settings)
+            .appendTo($("tbody", $tbody));
 		
 		// set width of fixed column wrapper
 		$fixedColumn.css({
@@ -675,10 +657,159 @@
 		}
 		
 		return scrollbarWidth;
+            },
+
+            /**
+             * A rowspan- and colspan-friendly method for freezing columns
+             * in place in an HTML table.
+             *
+             * @author <a href="mailto:ryanlee@zepheira.com">Ryan Lee</a>
+             * @param {jQuery} table
+             * @param {Object} tableProps
+             * @param {Object} settings
+             * @returns {jQuery}
+             */
+            _getFrozenColumns: function(table, tableProps, settings) {
+                var result = $("<tbody></tbody>"),
+                tbody = $("tbody", table),
+                model,
+                rows,
+                cols,
+                rowspan,
+                colspan,
+                i,
+                j,
+                cursor,
+                row,
+                cell,
+                count;
+
+                // Assumption 0: This table is actually a full m*n table;
+                // there are no missing table cells and no awkward outlier
+                // cells that would be rendered outside an m*n box.
+                // Violations of this assumption will cause this function to
+                // fail.
+
+                // Assumption 1: This table is not so byzantine that it has
+                // more actual rows than <tr> elements.  Violations of this
+                // assumption will cause this function to fail.
+                rows = $("tr", tbody).length;
+
+                // Assumption 2: This table is not so byzantine that the first
+                // row does not contain enough <td> elements with colspans to
+                // give the total number of columns.  Violations will - you
+                // get the idea.
+                cols = 0;
+                $("tr:eq(0) td", tbody).each(function(idx, el) {
+                    colspan = $(el).attr("colspan");
+                    if (typeof colspan !== "undefined") {
+                        cols += parseInt(colspan, 10);
+                    } else {
+                        cols += 1;
+                    }
+                });
+
+                // Initialize an in-memory model of table rendering.
+                model = new Array(rows);
+                for (i = 0; i < rows; i++) {
+                    model[i] = new Array(cols);
+                }
+
+                // Walk through each cell and fill in the model.
+                $("tr", tbody).each(function(ridx, rel) {
+                    $("td", rel).each(function(didx, del) {
+                        rowspan = $(del).attr("rowspan");
+                        colspan = $(del).attr("colspan");
+                        rowspan = (typeof rowspan === "undefined") ?
+                            rowspan = 1 :
+                            rowspan = parseInt(rowspan, 10);
+                        colspan = (typeof colspan === "undefined") ?
+                            colspan = 1 :
+                            colspan = parseInt(colspan, 10);
+                        // One reason why assumptions must not be violated:
+                        // the cursor might move off the end of the model.
+                        for (i = 0; i < cols; i++) {
+                            if (typeof model[ridx][i] === "undefined") {
+                                cursor = i;
+                                i = cols;
+                            }
+                        }
+                        // One reason why assumptions must not be violated:
+                        // the rows in the markup need to match up to the
+                        // rows in the model.
+                        model[ridx][cursor] = {
+                            "element": true,
+                            "rowspan": rowspan,
+                            "colspan": colspan
+                        };
+                        // Now fill in blanks if rowspan or colspan are
+                        // greater than 1.
+                        if (rowspan > 1 || colspan > 1) {
+                            for (i = 0; i < rowspan; i++) {
+                                for (j = 0; j < colspan; j++) {
+                                    // Sigh.  No logical XOR in this language.
+                                    if (i > 0 ||
+                                        j > 0 &&
+                                        !(i === 0 && j === 0)) {
+                                        model[ridx + i][cursor + j] = {
+                                            "element": false,
+                                            "rowspan": rowspan - i,
+                                            "colspan": colspan - j
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    });
+                });
+
+                // Model complete.  Re-walk through the table and build the
+                // appropriate columns from cells to imitate freezing, based
+                // on the model.
+                $("tr", tbody).each(function(idx, el) {
+                    row = $("<tr>");
+			        if (settings.altClass &&
+                        $(el).hasClass(settings.altClass)) {
+			            row.addClass(settings.altClass);
+			        }
+                    count = 0;
+                    for (i = 0; i < settings.fixedColumns; i++) {
+                        if (model[idx][i].element) {
+                            count++;
+                        }
+                    }
+                    for (i = 0; i < count; i++) {
+                        cell = $("td", el).eq(i).clone();
+                        // helpers._fix{Height,Width}WithCss rely on the
+                        // object being in the DOM and visible already,
+                        // so .height() and .width() are non-zero.  Cannot
+                        // use them.
+                        if (settings.includePadding) {
+                            cell.css(
+                                "width",
+                                $("td", el).eq(i).width()
+                            ).css(
+                                "height",
+                                $("td", el).eq(i).height()
+                            );
+                        } else {
+                            cell.css(
+                                "width",
+                                $("td", el).eq(i).width()
+                            ).css(
+                                "height",
+                                $("td", el).eq(i).parent().height()
+                            );
+                        }
+                        row.append(cell);
+                    }
+                    result.append(row);
+                });
+
+                // Return rows
+                return result.contents();
             }
-
         }
-
 
         // if a method as the given argument exists
         if (methods[method]) {
