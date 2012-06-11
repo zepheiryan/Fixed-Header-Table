@@ -700,7 +700,7 @@
                 // give the total number of columns.  Violations will - you
                 // get the idea.
                 cols = 0;
-                $("tr:eq(0) td", tbody).each(function(idx, el) {
+                $("tr:eq(0) > *", tbody).each(function(idx, el) {
                     colspan = $(el).attr("colspan");
                     if (typeof colspan !== "undefined") {
                         cols += parseInt(colspan, 10);
@@ -717,7 +717,7 @@
 
                 // Walk through each cell and fill in the model.
                 $("tr", tbody).each(function(ridx, rel) {
-                    $("td", rel).each(function(didx, del) {
+                    $("td, th", rel).each(function(didx, del) {
                         rowspan = $(del).attr("rowspan");
                         colspan = $(del).attr("colspan");
                         rowspan = (typeof rowspan === "undefined") ?
@@ -779,7 +779,7 @@
                         }
                     }
                     for (i = 0; i < count; i++) {
-                        cell = $("td", el).eq(i).clone();
+                        cell = $("td, th", el).eq(i).clone();
                         // helpers._fix{Height,Width}WithCss rely on the
                         // object being in the DOM and visible already,
                         // so .height() and .width() are non-zero.  Cannot
@@ -787,18 +787,18 @@
                         if (settings.includePadding) {
                             cell.css(
                                 "width",
-                                $("td", el).eq(i).width()
+                                $("td, th", el).eq(i).width()
                             ).css(
                                 "height",
-                                $("td", el).eq(i).height()
+                                $("td, th", el).eq(i).height()
                             );
                         } else {
                             cell.css(
                                 "width",
-                                $("td", el).eq(i).width()
+                                $("td, th", el).eq(i).width()
                             ).css(
                                 "height",
-                                $("td", el).eq(i).parent().height()
+                                $("td, th", el).eq(i).parent().height()
                             );
                         }
                         row.append(cell);
