@@ -166,7 +166,7 @@ input:-moz-placeholder {
 	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	}
 
-.fancyDarkTable tbody tr td {
+.fancyDarkTable tbody tr th {
 	/* appearance */
 	background-color: #363636;
 	background-image: -moz-linear-gradient(
