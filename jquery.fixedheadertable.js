@@ -126,7 +126,7 @@
 		
                 var tableProps = helpers._getTableProps($self);
                 
-                helpers._setupClone($divBody, tableProps.tbody);
+                helpers._setupClone($divBody, tableProps.tbody, "tbody");
 
                 if (!$self.hasClass('fht-table-init')) {
                     if (settings.fixedColumns > 0) {
@@ -141,8 +141,9 @@
                     $divHead = $wrapper.find('div.fht-thead');
                 }
 
-                helpers._setupClone($divHead, tableProps.thead);
-                
+                helpers._setupClone($divHead, tableProps.thead, "thead");
+
+                // this is not always correct, not sure why
                 $self.css({
                     'margin-top': -$divHead.outerHeight(true)
                 });
@@ -368,7 +369,7 @@
 	            });
             	} else {
             	    $obj.css({
-            		'height': $obj.parent().height() + tableProps.border
+            		'height': $obj.outerHeight(false) + tableProps.border
             	    });
             	}
             },
@@ -386,7 +387,7 @@
             	} else {
             	    $obj.each(function(index) {
 			$(this).css({
-            		    'width': width == undefined ? $(this).parent().width() + tableProps.border : width + tableProps.border
+            		    'width': width == undefined ? $(this).outerWidth(false) + tableProps.border : width + tableProps.border
 			});
             	    });
             	}
@@ -526,7 +527,7 @@
 	                    'margin-top': -tableProps.border
 	                });
             	    
-            	    helpers._setupClone($divFoot, tableProps.tfoot);
+            	    helpers._setupClone($divFoot, tableProps.tfoot, "tfoot");
             	    
             	    break;
             	}
@@ -553,11 +554,11 @@
 		
 		tableProp.border = ($obj.find('th:first-child').outerWidth() - $obj.find('th:first-child').innerWidth()) / borderCollapse;
 		
-                $obj.find('thead tr:first-child > *').each(function(index) {
+                $obj.find('thead tr > *').each(function(index) {
                     tableProp.thead[index] = $(this).width() + tableProp.border;
                 });
-                
-                $obj.find('tfoot tr:first-child > *').each(function(index) {
+
+                $obj.find('tfoot tr > *').each(function(index) {
                     tableProp.tfoot[index] = $(this).width() + tableProp.border;
                 });
                 
@@ -572,18 +573,13 @@
              * return void
              * Fix widths of each cell in the first row of obj.
              */
-            _setupClone: function($obj, cellArray) {
+            _setupClone: function($obj, cellArray, part) {
                 var $self    = $obj,
-                selector = ($self.find('thead').length) ?
-                    'thead tr:first-child > *' : 
-                    ($self.find('tfoot').length) ?
-                    'tfoot tr:first-child > *' :
-                    'tbody tr:first-child > *',
+                selector = part + ((part === "tbody") ? ' tr:first-child > *' :
+                                   ' tr > *'),
                 $cell;
-                
                 $self.find(selector).each(function(index) {
                     $cell = ($(this).find('div.fht-cell').length) ? $(this).find('div.fht-cell') : $('<div class="fht-cell"></div>').appendTo($(this));
-		    
                     $cell.css({
                         'width': parseInt(cellArray[index])
                     });
@@ -593,7 +589,8 @@
                      * to align with the scrollbar of the body 
                      */
                     if (!$(this).closest('.fht-tbody').length && $(this).is(':last-child') && !$(this).closest('.fht-fixed-column').length) {
-                    	var padding = (($(this).innerWidth() - $(this).width()) / 2) + settings.scrollbarOffset;
+                        // this is not always correct, not sure why
+                        var padding = (($(this).innerWidth() - $(this).width()) / 2.0) + settings.scrollbarOffset;
                     	$(this).css({
                     	    'padding-right': padding + 'px'
                     	});
